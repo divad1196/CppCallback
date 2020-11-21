@@ -6,7 +6,6 @@
 #include <atomic>
 #include <mutex>
 
-
 template<typename T>
 class Wrapper {
     public:
@@ -17,7 +16,7 @@ class Wrapper {
         Wrapper(
             const T& value,
             const Getter& getter,
-            const Setter& setter = [](const T& value __attribute__((unused)), const T& new_value){return new_value;}
+            const Setter& setter = [](const T& value __attribute__((unused)), const T& new_value) {return new_value;}
         ):  _inner(value), _getter(getter), _setter(setter) {}
         
         Wrapper(
@@ -62,13 +61,33 @@ class ThreadedWrapper: Wrapper<T> {
     public:
         using Getter = typename super::Getter;
         using Setter = typename super::Setter;
+        using SimpleSetter = typename super::SimpleSetter;
 
         ThreadedWrapper(
             std::mutex& wmutex,
             const T& value,
             const Getter& getter,
-            const Setter& setter
+            const Setter& setter = [](const T& value __attribute__((unused)), const T& new_value) {return new_value;}
         ): super(value, getter, setter), _mutex(wmutex) {}
+
+        ThreadedWrapper(
+            std::mutex& wmutex,
+            const T& value,
+            const Getter& getter,
+            const SimpleSetter& setter
+        ): super(value, getter, setter), _mutex(wmutex) {}
+
+        ThreadedWrapper(
+            const T& value,
+            const Getter& getter,
+            const Setter& setter = [](const T& value __attribute__((unused)), const T& new_value) {return new_value;}
+        ): ThreadedWrapper(THREADED_WRAPPER_GLOBAL_MUTEX, value, getter, setter) {}
+
+        ThreadedWrapper(
+            const T& value,
+            const Getter& getter,
+            const SimpleSetter& setter
+        ): ThreadedWrapper(THREADED_WRAPPER_GLOBAL_MUTEX, value, getter, setter) {}
 
         T get() const {
             std::lock_guard<std::mutex> guard(_mutex);
@@ -76,10 +95,21 @@ class ThreadedWrapper: Wrapper<T> {
         }
         
         ThreadedWrapper& set(const T& value) {
+            // FIXME: one thread trying multiple access block itself
+            // https://en.cppreference.com/w/cpp/thread/recursive_mutex
+            // Use try_lock?
             std::lock_guard<std::mutex> guard(_mutex);
             return this->set(value);
         }
         
+        ThreadedWrapper& operator=(const T& value) {
+            return set(value);
+        }
+
+        operator T() {
+            return get();
+        }
+
     private:
         std::mutex& _mutex;
 };

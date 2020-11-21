@@ -1,6 +1,7 @@
 #include<cstdlib>
 #include<iostream>
 #include<string>
+#include<future>
 
 #include "callback.h"
 
@@ -42,10 +43,10 @@ int main() {
     Interval interval(500);
     interval.runFor([](){
         std::cout << "hello world" << std::endl;
-    }, 5000);
+    }, 1000);
 
     int count = 0;
-    Debounce dbounce(1000);
+    Debounce dbounce(200);
     while (count < 5) {
         dbounce && (count += 1) && (
             std::cout << count << std::endl
@@ -73,6 +74,25 @@ int main() {
     for(int value: list) {
         std::cout << ag.next(value) << std::endl;
     }
+
+    std::string texte;
+    ThreadedWrapper<int> tdwrapper(
+        0,
+        [&](const int& value){
+            std::cout << value << std::endl;
+            return value;
+        }
+    );
+
+    std::async([&tdwrapper](){
+        if(tdwrapper % 2 == 0)
+            tdwrapper = tdwrapper + 1;
+    });
+
+    std::async([&tdwrapper](){
+        if(tdwrapper % 2 != 0)
+            tdwrapper = tdwrapper + 1;
+    });
 
 
     return EXIT_SUCCESS;
